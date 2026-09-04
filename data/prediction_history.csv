@@ -1,0 +1,4 @@
+id,age,gender,cgpa,tenth_percentage,twelfth_percentage,aptitude_score,coding_score,communication_score,technical_skills,certifications,internship_experience,projects,prediction,probability
+1,21,Male,7.0,9.5,83.0,87.0,87.0,76.0,7,2,1,2,Not Placed,38.5
+2,22,Male,8.2,95.0,83.0,75.0,80.0,78.0,7,2,1,2,Placed,66.5
+3,23,Male,8.7,9.5,83.0,89.0,87.0,70.0,7,2,1,2,Placed,58.25
