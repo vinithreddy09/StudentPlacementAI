@@ -9,9 +9,9 @@ app = Flask(__name__)
 model = joblib.load("models/placement_model.pkl")
 
 
-# ==========================================
-# DATABASE
-# ==========================================
+# =========================================================
+# DATABASE - SAVE PREDICTION
+# =========================================================
 
 def save_prediction(data, prediction, probability):
 
@@ -57,9 +57,9 @@ def save_prediction(data, prediction, probability):
     connection.close()
 
 
-# ==========================================
-# HOME PAGE
-# ==========================================
+# =========================================================
+# HOME
+# =========================================================
 
 @app.route("/")
 def home():
@@ -67,9 +67,9 @@ def home():
     return render_template("index.html")
 
 
-# ==========================================
+# =========================================================
 # PREDICTION
-# ==========================================
+# =========================================================
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -94,9 +94,8 @@ def predict():
     # ML prediction
     prediction = model.predict(input_data)[0]
 
-    # Prediction probability
+    # Probability
     probabilities = model.predict_proba(input_data)[0]
-
     class_names = model.classes_
 
     probability_dict = dict(
@@ -111,142 +110,107 @@ def predict():
         placed_probability, 2
     )
 
-
-    # ==========================================
+    # =====================================================
     # RECOMMENDATIONS
-    # ==========================================
+    # =====================================================
 
     recommendations = []
 
     if data["CGPA"] < 7:
-
         recommendations.append(
             "Improve your academic performance and maintain CGPA above 7."
         )
 
     if data["Coding_Score"] < 60:
-
         recommendations.append(
             "Improve coding skills through Python, SQL and problem solving."
         )
 
     if data["Aptitude_Score"] < 60:
-
         recommendations.append(
             "Practice quantitative aptitude and logical reasoning."
         )
 
     if data["Communication_Score"] < 60:
-
         recommendations.append(
             "Improve communication and interview skills."
         )
 
     if data["Certifications"] == 0:
-
         recommendations.append(
             "Complete relevant technical certifications."
         )
 
     if data["Internship_Experience"] == 0:
-
         recommendations.append(
             "Try to gain internship or practical industry experience."
         )
 
     if data["Projects"] < 2:
-
         recommendations.append(
             "Build at least 2 strong real-world projects."
         )
 
     if data["Technical_Skills"] < 5:
-
         recommendations.append(
             "Develop more technical skills relevant to your target job."
         )
 
     if not recommendations:
-
         recommendations.append(
             "Your profile looks strong. Continue improving your technical and interview skills."
         )
 
-
-    # ==========================================
-    # SKILL GAP ANALYSIS
-    # ==========================================
+    # =====================================================
+    # SKILL GAP
+    # =====================================================
 
     skill_scores = {
 
-        "CGPA":
-            round(data["CGPA"] * 10, 1),
+        "CGPA": round(data["CGPA"] * 10, 1),
 
-        "Aptitude":
-            data["Aptitude_Score"],
+        "Aptitude": data["Aptitude_Score"],
 
-        "Coding":
-            data["Coding_Score"],
+        "Coding": data["Coding_Score"],
 
-        "Communication":
-            data["Communication_Score"],
+        "Communication": data["Communication_Score"],
 
-        "Technical Skills":
-            data["Technical_Skills"] * 10
-
+        "Technical Skills": data["Technical_Skills"] * 10
     }
 
-
-    # ==========================================
-    # SAVE TO DATABASE
-    # ==========================================
-
+    # Save prediction
     save_prediction(
         data,
         prediction,
         placed_probability
     )
 
-
-    # ==========================================
-    # RESULT PAGE
-    # ==========================================
-
     return render_template(
         "result.html",
-
         prediction=prediction,
-
         probability=placed_probability,
-
         recommendations=recommendations,
-
         skill_scores=skill_scores
     )
 
 
-# ==========================================
+# =========================================================
 # DASHBOARD
-# ==========================================
+# =========================================================
 
 @app.route("/dashboard")
 def dashboard():
 
-    connection = sqlite3.connect(
-        "student_placement.db"
-    )
-
+    connection = sqlite3.connect("student_placement.db")
     cursor = connection.cursor()
 
-
-    # ------------------------------------------
+    # =====================================================
     # BASIC STATISTICS
-    # ------------------------------------------
+    # =====================================================
 
     total = cursor.execute(
         "SELECT COUNT(*) FROM predictions"
     ).fetchone()[0]
-
 
     placed = cursor.execute(
         """
@@ -256,7 +220,6 @@ def dashboard():
         """
     ).fetchone()[0]
 
-
     not_placed = cursor.execute(
         """
         SELECT COUNT(*)
@@ -265,7 +228,6 @@ def dashboard():
         """
     ).fetchone()[0]
 
-
     average_probability = cursor.execute(
         """
         SELECT AVG(probability)
@@ -273,10 +235,9 @@ def dashboard():
         """
     ).fetchone()[0]
 
-
-    # ------------------------------------------
+    # =====================================================
     # PREDICTION HISTORY
-    # ------------------------------------------
+    # =====================================================
 
     records = cursor.execute(
         """
@@ -292,118 +253,66 @@ def dashboard():
         """
     ).fetchall()
 
-
-    # ------------------------------------------
-    # CGPA DATA
-    # ------------------------------------------
+    # =====================================================
+    # CGPA BUCKET DATA
+    # =====================================================
 
     cgpa_data = cursor.execute(
         """
-        SELECT
-            cgpa,
-            prediction
+        SELECT cgpa, prediction
         FROM predictions
-        ORDER BY cgpa
         """
     ).fetchall()
 
+    cgpa_labels = [
+        "5-6",
+        "6-7",
+        "7-8",
+        "8-9",
+        "9-10"
+    ]
 
-    # ------------------------------------------
-    # CODING SCORE DATA
-    # ------------------------------------------
-
-    coding_data = cursor.execute(
-        """
-        SELECT
-            coding_score,
-            prediction
-        FROM predictions
-        ORDER BY coding_score
-        """
-    ).fetchall()
-
-
-    # ------------------------------------------
-    # PROBABILITY DATA
-    # ------------------------------------------
-
-    probability_data = cursor.execute(
-        """
-        SELECT probability
-        FROM predictions
-        ORDER BY probability
-        """
-    ).fetchall()
-
-
-    connection.close()
-
-
-    # ==========================================
-    # PREPARE CGPA CHART DATA
-    # ==========================================
-
-    cgpa_labels = []
-
-    cgpa_placed = []
-
-    cgpa_not_placed = []
-
+    cgpa_placed = [0, 0, 0, 0, 0]
+    cgpa_not_placed = [0, 0, 0, 0, 0]
 
     for cgpa, prediction in cgpa_data:
 
-        cgpa_labels.append(
-            str(cgpa)
-        )
+        if 5 <= cgpa < 6:
+            index = 0
 
-        if prediction == "Placed":
+        elif 6 <= cgpa < 7:
+            index = 1
 
-            cgpa_placed.append(1)
+        elif 7 <= cgpa < 8:
+            index = 2
 
-            cgpa_not_placed.append(0)
+        elif 8 <= cgpa < 9:
+            index = 3
 
-        else:
-
-            cgpa_placed.append(0)
-
-            cgpa_not_placed.append(1)
-
-
-    # ==========================================
-    # CODING SCORE CHART DATA
-    # ==========================================
-
-    coding_labels = []
-
-    coding_placed = []
-
-    coding_not_placed = []
-
-
-    for coding, prediction in coding_data:
-
-        coding_labels.append(
-            str(coding)
-        )
-
-        if prediction == "Placed":
-
-            coding_placed.append(1)
-
-            coding_not_placed.append(0)
+        elif 9 <= cgpa <= 10:
+            index = 4
 
         else:
+            continue
 
-            coding_placed.append(0)
+        if prediction == "Placed":
+            cgpa_placed[index] += 1
 
-            coding_not_placed.append(1)
+        else:
+            cgpa_not_placed[index] += 1
 
+    # =====================================================
+    # CODING SCORE BUCKET DATA
+    # =====================================================
 
-    # ==========================================
-    # PROBABILITY CHART DATA
-    # ==========================================
+    coding_data = cursor.execute(
+        """
+        SELECT coding_score, prediction
+        FROM predictions
+        """
+    ).fetchall()
 
-    probability_ranges = [
+    coding_labels = [
         "0-20",
         "20-40",
         "40-60",
@@ -411,53 +320,89 @@ def dashboard():
         "80-100"
     ]
 
-    probability_counts = [
-        0,
-        0,
-        0,
-        0,
-        0
+    coding_placed = [0, 0, 0, 0, 0]
+    coding_not_placed = [0, 0, 0, 0, 0]
+
+    for coding, prediction in coding_data:
+
+        if 0 <= coding < 20:
+            index = 0
+
+        elif 20 <= coding < 40:
+            index = 1
+
+        elif 40 <= coding < 60:
+            index = 2
+
+        elif 60 <= coding < 80:
+            index = 3
+
+        elif 80 <= coding <= 100:
+            index = 4
+
+        else:
+            continue
+
+        if prediction == "Placed":
+            coding_placed[index] += 1
+
+        else:
+            coding_not_placed[index] += 1
+
+    # =====================================================
+    # PROBABILITY DISTRIBUTION
+    # =====================================================
+
+    probability_data = cursor.execute(
+        """
+        SELECT probability
+        FROM predictions
+        """
+    ).fetchall()
+
+    probability_ranges = [
+        "0-20%",
+        "20-40%",
+        "40-60%",
+        "60-80%",
+        "80-100%"
     ]
 
+    probability_counts = [0, 0, 0, 0, 0]
 
     for row in probability_data:
 
         probability = row[0]
 
         if probability < 20:
-
             probability_counts[0] += 1
 
         elif probability < 40:
-
             probability_counts[1] += 1
 
         elif probability < 60:
-
             probability_counts[2] += 1
 
         elif probability < 80:
-
             probability_counts[3] += 1
 
         else:
-
             probability_counts[4] += 1
 
+    connection.close()
 
-    # ==========================================
-    # DEFAULT AVERAGE
-    # ==========================================
+    # =====================================================
+    # AVERAGE
+    # =====================================================
 
     average_probability = round(
         average_probability or 0,
         2
     )
 
-
-    # ==========================================
-    # SEND EVERYTHING TO DASHBOARD
-    # ==========================================
+    # =====================================================
+    # SEND DATA TO DASHBOARD
+    # =====================================================
 
     return render_template(
 
@@ -491,12 +436,16 @@ def dashboard():
     )
 
 
-# ==========================================
-# RUN APPLICATION
-# ==========================================
+# =========================================================
+# RUN
+# =========================================================
+    if __name__ == "__main__":
+    import os
 
-if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
 
     app.run(
-        debug=True
+        host="0.0.0.0",
+        port=port,
+        debug=False
     )
